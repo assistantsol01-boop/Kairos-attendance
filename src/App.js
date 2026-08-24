@@ -516,4 +516,466 @@ export default function App() {
     setRegName(member.name);
     setRegRole(member.role);
     setRegShepherd(member.shepherd || "");
-    setRegEditId(member.id)
+    setRegEditId(member.id);
+  };
+  const badge = (type) => type === "sunday"
+    ? <span style={S.badgeSunday}>☀️ Sunday</span>
+    : <span style={S.badgeCell}>🏠 Cell</span>;
+
+  const roleBadge = (role) => {
+    const map = {
+      "CS": { bg: "#2a1a3a", color: "#c084fc" },
+      "S": { bg: "#1a2a3a", color: "#60a5fa" },
+      "SS": { bg: "#3a2a1a", color: "#fb923c" },
+      "Pastor": { bg: "#1a3a2a", color: "#4ade80" },
+      "Member": { bg: "#2a2a2a", color: "#94a3b8" },
+    };
+    const style = map[role] || map["Member"];
+    return <span style={{ ...S.roleBadge, background: style.bg, color: style.color }}>{role}</span>;
+  };
+
+  // ─── GROUPS VIEW ────────────────────────────────────────────────────────────
+  const GroupsView = ({ groups, type, register }) => {
+    if (!groups || groups.length === 0) return null;
+    const absentees = register.length > 0 ? getAbsentees(register, groups) : [];
+
+    return (
+      <div>
+        <div style={S.cardLabel}>SHEPHERD GROUPS</div>
+        {groups.map((g, i) => (
+          <div key={i} style={S.groupCard}>
+            <div style={S.groupLeader}>
+              <div style={S.groupLeaderLeft}>
+                <div style={S.groupLeaderName}>
+                  {g.leader?.name || "Unknown"}
+                  {g.leader?.present === false && <span style={S.absentInline}> (absent)</span>}
+                </div>
+                <div style={{ display: "flex", gap: 6, marginTop: 4, alignItems: "center" }}>
+                  {roleBadge(g.leader?.role || "S")}
+                  {type === "sunday" && g.leader?.service && (
+                    <span style={S.serviceTag}>
+                      {g.leader.service === "joy" ? "1️⃣ Joy" : g.leader.service === "enlargement" ? "2️⃣ Enlargement" : "1️⃣2️⃣ Both"}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={S.memberCount}>
+                {(g.members || []).length} member{(g.members || []).length !== 1 ? "s" : ""}
+              </div>
+            </div>
+            {(g.members || []).length > 0 && (
+              <div style={S.membersList}>
+                {g.members.map((m, j) => (
+                  <div key={j} style={S.memberRow}>
+                    <span style={S.memberDot}>›</span>
+                    <span style={S.memberName}>{m.name}</span>
+                    {type === "sunday" && m.service && (
+                      <span style={S.serviceTagSm}>
+                        {m.service === "joy" ? "1️⃣" : m.service === "enlargement" ? "2️⃣" : "1️⃣2️⃣"}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {(!g.members || g.members.length === 0) && (
+              <div style={S.noMembers}>No members present</div>
+            )}
+          </div>
+        ))}
+
+        {absentees.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div style={S.cardLabel}>⚠️ ABSENTEES ({absentees.length})</div>
+            <div style={S.absentCard}>
+              {absentees.map((a, i) => (
+                <div key={i} style={S.absentRow}>
+                  <div>
+                    <span style={S.absentName}>{a.name}</span>
+                    {a.shepherd && <span style={S.absentShepherd}> · under {a.shepherd}</span>}
+                  </div>
+                  {roleBadge(a.role)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {register.length === 0 && (
+          <div style={S.registerHint}>
+            💡 Add members to the Register tab to enable absentee detection
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── REGISTER VIEW ──────────────────────────────────────────────────────────
+  const shepherds = register.filter(r => r.role === "S" || r.role === "CS" || r.role === "SS");
+
+  // ─── RENDER ─────────────────────────────────────────────────────────────────
+  if (showKeySetup) {
+    return (
+      <div style={S.app}>
+        <div style={S.keySetupWrap}>
+          <div style={S.crossIcon2}>✝</div>
+          <div style={S.keySetupTitle}>Kairos Cell B</div>
+          <div style={S.keySetupSub}>Attendance System</div>
+          <div style={S.keySetupCard}>
+            <div style={S.cardLabel}>🔑 API KEY SETUP</div>
+            <p style={S.keySetupText}>
+              This app uses Claude AI to process attendance. You need a free Anthropic API key to get started.
+            </p>
+            <div style={S.keyStep}>1. Go to <span style={S.keyLink}>console.anthropic.com</span></div>
+            <div style={S.keyStep}>2. Sign up / Log in</div>
+            <div style={S.keyStep}>3. Click <b>API Keys</b> → <b>Create Key</b></div>
+            <div style={S.keyStep}>4. Copy the key (starts with sk-ant-...)</div>
+            <div style={S.keyStep}>5. Paste it below 👇</div>
+            <input
+              style={{ ...S.input, marginTop: 16 }}
+              placeholder="sk-ant-..."
+              value={apiKeyInput}
+              onChange={e => setApiKeyInput(e.target.value)}
+              type="password"
+            />
+            <button style={S.btn} onClick={saveApiKey}>
+              Save & Continue →
+            </button>
+            {apiKey && (
+              <button style={S.btnOutline} onClick={() => setShowKeySetup(false)}>
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={S.app}>
+      {/* Header */}
+      <div style={S.header}>
+        <div style={S.headerTop}>
+          <div>
+            <div style={S.headerTitle}>Kairos Cell B</div>
+            <div style={S.headerSub}>Attendance System</div>
+          </div>
+          <div style={S.crossIcon}>✝</div>
+        </div>
+        <div style={S.tabs}>
+          {[
+            { key: "input", label: "📝 New" },
+            { key: "result", label: "📄 Report" },
+            { key: "history", label: "🗂 History" },
+            { key: "register", label: "👥 Register" },
+          ].map(t => (
+            <button key={t.key} onClick={() => setView(t.key)}
+              style={view === t.key ? S.tabActive : S.tab}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={S.body}>
+
+        {/* ── INPUT ── */}
+        {view === "input" && (
+          <div>
+            <div style={S.hint}>Paste Sunday or Cell Meeting attendance — any format works. Just first names are fine if they're in your Register.</div>
+            <textarea style={S.textarea}
+              placeholder={"Example with full format:\n\nCS. Godsway Asare 1️⃣\n- Deborah Senakey 2️⃣\n\nOr just first names (matched against your Register):\n\nGodsway 1️⃣\nPaul 1️⃣\nKeller 1️⃣"}
+              value={input} onChange={e => setInput(e.target.value)} rows={12} />
+            {error && <div style={S.error}>{error}</div>}
+            <button style={loading ? S.btnDisabled : S.btn}
+              onClick={processAttendance} disabled={loading}>
+              {loading ? "Processing…" : "Generate Report →"}
+            </button>
+          </div>
+        )}
+
+        {/* ── RESULT ── */}
+        {view === "result" && result && (() => {
+          const reportText = result.type === "sunday" ? formatSundayReport(result.data) : formatCellReport(result.data);
+          return (
+            <div>
+              <div style={S.resultHeader}>
+                <div>
+                  <div style={S.resultTitle}>{result.cellName}</div>
+                  <div style={S.resultMeta}>{result.date} · {badge(result.type)}</div>
+                </div>
+                <div style={S.totalBadge}>{result.data.totals?.total || 0} total</div>
+              </div>
+
+              {result.ambiguous && result.ambiguous.length > 0 && (
+                <div style={S.ambigBanner}>
+                  ⚠️ Couldn't auto-match: {result.ambiguous.map((a, i) => (
+                    <span key={i}>"{a.typed}" could be {a.matches.join(" or ")}{i < result.ambiguous.length - 1 ? "; " : ""}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Groups */}
+              <div style={S.card}>
+                <GroupsView groups={result.data.groups} type={result.type} register={register} />
+              </div>
+
+              {/* Attendance list */}
+              <div style={S.card}>
+                <div style={S.cardLabel}>ATTENDANCE LIST</div>
+                <pre style={S.pre}>{result.data.structuredAttendance}</pre>
+                <button style={S.copyBtn} onClick={() => copyText(result.data.structuredAttendance, "att")}>
+                  {copied.att === true ? "✓ Copied" : copied.att === "fail" ? "✗ Try long-press select" : "Copy"}
+                </button>
+              </div>
+
+              {/* Report */}
+              <div style={S.card}>
+                <div style={S.cardLabel}>{result.type === "sunday" ? "SERVICE BREAKDOWN" : "FULL CELL REPORT"}</div>
+                <pre style={S.pre}>{reportText}</pre>
+                <button style={S.copyBtn} onClick={() => copyText(reportText, "rep")}>
+                  {copied.rep === true ? "✓ Copied" : copied.rep === "fail" ? "✗ Try long-press select" : "Copy"}
+                </button>
+              </div>
+
+              <button style={S.btnOutline} onClick={() => { setInput(""); setView("input"); }}>
+                + New Attendance
+              </button>
+              <button style={S.btnDanger} onClick={() => deleteFromHistory(result.id)}>
+                🗑 Delete This Report
+              </button>
+            </div>
+          );
+        })()}
+
+        {view === "result" && !result && (
+          <div style={S.empty}>No report yet. Go to New to process attendance.</div>
+        )}
+
+        {/* ── HISTORY ── */}
+        {view === "history" && (
+          <div>
+            {history.length === 0
+              ? <div style={S.empty}>No reports saved yet.</div>
+              : history.map(entry => (
+                <div key={entry.id} style={S.historyCard}>
+                  <div style={S.historyRow} onClick={() => { setResult(entry); setView("result"); }}>
+                    <div>
+                      <div style={S.historyName}>{entry.cellName}</div>
+                      <div style={S.historyDate}>{entry.date}</div>
+                    </div>
+                    <div style={S.historyRight}>
+                      {badge(entry.type)}
+                      <div style={S.historyTotal}>{entry.data.totals?.total || 0} ppl</div>
+                    </div>
+                  </div>
+                  <button style={S.deleteBtn}
+                    onClick={(e) => { e.stopPropagation(); deleteFromHistory(entry.id); }}>
+                    🗑 Delete
+                  </button>
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {/* ── REGISTER ── */}
+        {view === "register" && (
+          <div>
+            <div style={S.hint}>Add your full member list once. The system uses this to detect absentees automatically.</div>
+
+            {/* Add form */}
+            <div style={S.card}>
+              <div style={S.cardLabel}>{regEditId ? "EDIT MEMBER" : "ADD MEMBER"}</div>
+              <input style={S.input} placeholder="Full name" value={regName}
+                onChange={e => setRegName(e.target.value)} />
+              <select style={S.select} value={regRole} onChange={e => setRegRole(e.target.value)}>
+                <option value="Pastor">Pastor</option>
+                <option value="SS">Senior Shepherd (SS)</option>
+                <option value="CS">Cell Shepherd (CS)</option>
+                <option value="S">Shepherd (S)</option>
+                <option value="Member">Member</option>
+              </select>
+              {(regRole === "Member") && (
+                <select style={S.select} value={regShepherd} onChange={e => setRegShepherd(e.target.value)}>
+                  <option value="">— Select shepherd (optional) —</option>
+                  {shepherds.map(s => (
+                    <option key={s.id} value={s.name}>{s.name} ({s.role})</option>
+                  ))}
+                </select>
+              )}
+              <button style={S.btn} onClick={addRegisterMember}>
+                {regEditId ? "Save Changes" : "+ Add to Register"}
+              </button>
+              {regEditId && (
+                <button style={{ ...S.btnOutline, marginTop: 8 }}
+                  onClick={() => { setRegEditId(null); setRegName(""); setRegRole("Member"); setRegShepherd(""); }}>
+                  Cancel
+                </button>
+              )}
+            </div>
+
+            {/* Member list grouped by shepherd */}
+            {register.length === 0
+              ? <div style={S.empty}>Register is empty. Add your cell members above.</div>
+              : (() => {
+                  const shepherdMembers = shepherds.map(sh => ({
+                    shepherd: sh,
+                    members: register.filter(r => r.role === "Member" && r.shepherd === sh.name)
+                  }));
+                  const unassigned = register.filter(r => r.role === "Member" && !r.shepherd);
+                  const leaders = register.filter(r => r.role !== "Member");
+
+                  return (
+                    <div>
+                      {/* Leaders */}
+                      {leaders.length > 0 && (
+                        <div style={S.card}>
+                          <div style={S.cardLabel}>LEADERSHIP ({leaders.length})</div>
+                          {leaders.map(m => (
+                            <div key={m.id} style={S.regRow}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {roleBadge(m.role)}
+                                <span style={S.regName}>{m.name}</span>
+                              </div>
+                              <div style={S.regActions}>
+                                <button style={S.iconBtn} onClick={() => editRegisterMember(m)}>✏️</button>
+                                <button style={S.iconBtn} onClick={() => deleteRegisterMember(m.id)}>🗑</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Groups */}
+                      {shepherdMembers.map(({ shepherd, members }) => (
+                        members.length > 0 && (
+                          <div key={shepherd.id} style={S.card}>
+                            <div style={S.cardLabel}>
+                              {shepherd.role === "CS" ? "CS. " : "S. "}{shepherd.name.toUpperCase()} — {members.length} MEMBER{members.length !== 1 ? "S" : ""}
+                            </div>
+                            {members.map(m => (
+                              <div key={m.id} style={S.regRow}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={S.memberDot}>›</span>
+                                  <span style={S.regName}>{m.name}</span>
+                                </div>
+                                <div style={S.regActions}>
+                                  <button style={S.iconBtn} onClick={() => editRegisterMember(m)}>✏️</button>
+                                  <button style={S.iconBtn} onClick={() => deleteRegisterMember(m.id)}>🗑</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      ))}
+
+                      {/* Unassigned */}
+                      {unassigned.length > 0 && (
+                        <div style={S.card}>
+                          <div style={S.cardLabel}>UNASSIGNED MEMBERS ({unassigned.length})</div>
+                          {unassigned.map(m => (
+                            <div key={m.id} style={S.regRow}>
+                              <span style={S.regName}>{m.name}</span>
+                              <div style={S.regActions}>
+                                <button style={S.iconBtn} onClick={() => editRegisterMember(m)}>✏️</button>
+                                <button style={S.iconBtn} onClick={() => deleteRegisterMember(m.id)}>🗑</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={S.regTotal}>
+                        {register.length} total in register
+                      </div>
+                    </div>
+                  );
+                })()
+            }
+            <button style={{ ...S.btnOutline, marginTop: 20, fontSize: 12, opacity: 0.6 }}
+              onClick={() => setShowKeySetup(true)}>
+              🔑 Change API Key
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ─── STYLES ──────────────────────────────────────────────────────────────────
+const S = {
+  app: { fontFamily: "'Segoe UI', system-ui, sans-serif", background: "#0f1117", minHeight: "100vh", color: "#e8e8e8" },
+  header: { background: "linear-gradient(135deg, #1a1f2e 0%, #0f1117 100%)", borderBottom: "1px solid #2a2f3e" },
+  headerTop: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 16px 12px" },
+  headerTitle: { fontSize: 20, fontWeight: 700, color: "#ffffff", letterSpacing: 0.5 },
+  headerSub: { fontSize: 12, color: "#7c84a0", marginTop: 2 },
+  crossIcon: { fontSize: 28, color: "#c9a84c", opacity: 0.9 },
+  tabs: { display: "flex" },
+  tab: { flex: 1, padding: "10px 2px", background: "none", border: "none", color: "#7c84a0", fontSize: 11, cursor: "pointer", borderBottom: "2px solid transparent" },
+  tabActive: { flex: 1, padding: "10px 2px", background: "none", border: "none", color: "#c9a84c", fontSize: 11, cursor: "pointer", borderBottom: "2px solid #c9a84c", fontWeight: 700 },
+  body: { padding: 16, maxWidth: 480, margin: "0 auto" },
+  hint: { color: "#7c84a0", fontSize: 13, marginBottom: 12, lineHeight: 1.5 },
+  textarea: { width: "100%", background: "#1a1f2e", border: "1px solid #2a2f3e", borderRadius: 10, color: "#e8e8e8", fontSize: 13, padding: 14, resize: "vertical", outline: "none", lineHeight: 1.6, boxSizing: "border-box", fontFamily: "monospace" },
+  input: { width: "100%", background: "#0f1117", border: "1px solid #2a2f3e", borderRadius: 8, color: "#e8e8e8", fontSize: 14, padding: "10px 12px", outline: "none", boxSizing: "border-box", marginBottom: 8 },
+  select: { width: "100%", background: "#0f1117", border: "1px solid #2a2f3e", borderRadius: 8, color: "#e8e8e8", fontSize: 14, padding: "10px 12px", outline: "none", boxSizing: "border-box", marginBottom: 8 },
+  btn: { width: "100%", marginTop: 4, padding: "13px", background: "linear-gradient(135deg, #c9a84c, #e0c068)", color: "#0f1117", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, cursor: "pointer" },
+  btnDisabled: { width: "100%", marginTop: 4, padding: "13px", background: "#2a2f3e", color: "#7c84a0", fontWeight: 700, fontSize: 15, border: "none", borderRadius: 10, cursor: "not-allowed" },
+  btnOutline: { width: "100%", marginTop: 8, padding: "11px", background: "none", color: "#c9a84c", fontWeight: 600, fontSize: 14, border: "1px solid #c9a84c", borderRadius: 10, cursor: "pointer" },
+  btnDanger: { width: "100%", marginTop: 8, padding: "11px", background: "none", color: "#f87171", fontWeight: 600, fontSize: 14, border: "1px solid #5a2424", borderRadius: 10, cursor: "pointer" },
+  deleteBtn: { width: "100%", marginTop: 8, padding: "7px", background: "none", color: "#f87171", fontWeight: 600, fontSize: 12, border: "1px solid #3a1a1a", borderRadius: 8, cursor: "pointer" },
+  error: { color: "#e05c5c", fontSize: 13, marginTop: 8, padding: 10, background: "#2a1a1a", borderRadius: 8 },
+  card: { background: "#1a1f2e", border: "1px solid #2a2f3e", borderRadius: 10, padding: 14, marginBottom: 12 },
+  cardLabel: { fontSize: 10, fontWeight: 700, color: "#c9a84c", letterSpacing: 1.5, marginBottom: 10 },
+  pre: { fontFamily: "monospace", fontSize: 13, color: "#d0d4e0", whiteSpace: "pre-wrap", margin: 0, lineHeight: 1.7 },
+  copyBtn: { marginTop: 12, padding: "7px 16px", background: "#2a2f3e", color: "#c9a84c", border: "1px solid #c9a84c", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 600 },
+  resultHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
+  resultTitle: { fontSize: 18, fontWeight: 700, color: "#fff" },
+  resultMeta: { fontSize: 12, color: "#7c84a0", marginTop: 4, display: "flex", alignItems: "center", gap: 6 },
+  totalBadge: { background: "#c9a84c", color: "#0f1117", fontWeight: 700, fontSize: 13, padding: "6px 12px", borderRadius: 20 },
+  badgeSunday: { background: "#2a3a1a", color: "#7ecb5f", fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600 },
+  badgeCell: { background: "#1a2a3a", color: "#5fb4cb", fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600 },
+  roleBadge: { fontSize: 10, padding: "2px 7px", borderRadius: 20, fontWeight: 700 },
+  groupCard: { background: "#0f1117", border: "1px solid #2a2f3e", borderRadius: 8, marginBottom: 10, overflow: "hidden" },
+  groupLeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "10px 12px", background: "#1a1f2e" },
+  groupLeaderLeft: { flex: 1 },
+  groupLeaderName: { fontSize: 14, fontWeight: 700, color: "#fff" },
+  absentInline: { fontSize: 12, fontWeight: 600, color: "#f87171" },
+  memberCount: { fontSize: 11, color: "#7c84a0", marginLeft: 8, whiteSpace: "nowrap" },
+  membersList: { padding: "8px 12px" },
+  memberRow: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0" },
+  memberDot: { color: "#c9a84c", fontWeight: 700, fontSize: 14 },
+  memberName: { fontSize: 13, color: "#d0d4e0" },
+  noMembers: { padding: "8px 12px", fontSize: 12, color: "#4a5070", fontStyle: "italic" },
+  serviceTag: { fontSize: 10, color: "#7c84a0", background: "#2a2f3e", padding: "2px 6px", borderRadius: 10 },
+  serviceTagSm: { fontSize: 11, marginLeft: "auto" },
+  absentCard: { background: "#1a1010", border: "1px solid #3a1a1a", borderRadius: 8, padding: 12 },
+  absentRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid #2a1a1a" },
+  absentName: { fontSize: 13, color: "#f87171" },
+  absentShepherd: { fontSize: 11, color: "#7c84a0" },
+  registerHint: { fontSize: 12, color: "#7c84a0", textAlign: "center", padding: "10px", background: "#1a1f2e", borderRadius: 8, marginTop: 8 },
+  ambigBanner: { fontSize: 12, color: "#fbbf24", background: "#2a2410", border: "1px solid #4a3a10", borderRadius: 8, padding: 10, marginBottom: 12, lineHeight: 1.5 },
+  historyCard: { background: "#1a1f2e", border: "1px solid #2a2f3e", borderRadius: 10, padding: 14, marginBottom: 10, cursor: "pointer" },
+  historyRow: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  historyName: { fontSize: 15, fontWeight: 600, color: "#fff" },
+  historyDate: { fontSize: 12, color: "#7c84a0", marginTop: 2 },
+  historyRight: { textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 },
+  historyTotal: { fontSize: 13, color: "#c9a84c", fontWeight: 600 },
+  regRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #2a2f3e" },
+  regName: { fontSize: 14, color: "#d0d4e0" },
+  regActions: { display: "flex", gap: 8 },
+  iconBtn: { background: "none", border: "none", cursor: "pointer", fontSize: 15, padding: 2 },
+  regTotal: { textAlign: "center", color: "#7c84a0", fontSize: 12, marginTop: 8 },
+  empty: { textAlign: "center", color: "#7c84a0", padding: "40px 20px", fontSize: 14 },
+  keySetupWrap: { minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 },
+  crossIcon2: { fontSize: 48, color: "#c9a84c", marginBottom: 12 },
+  keySetupTitle: { fontSize: 26, fontWeight: 700, color: "#fff", marginBottom: 4 },
+  keySetupSub: { fontSize: 14, color: "#7c84a0", marginBottom: 28 },
+  keySetupCard: { background: "#1a1f2e", border: "1px solid #2a2f3e", borderRadius: 14, padding: 20, width: "100%", maxWidth: 400 },
+  keySetupText: { color: "#94a3b8", fontSize: 13, lineHeight: 1.6, marginBottom: 16 },
+  keyStep: { color: "#d0d4e0", fontSize: 13, padding: "4px 0", lineHeight: 1.5 },
+  keyLink: { color: "#c9a84c", fontWeight: 600 },
+};
